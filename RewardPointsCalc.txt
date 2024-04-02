@@ -1,0 +1,106 @@
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@SpringBootApplication
+@RestController
+public class RewardPointsCalc {
+
+    private static final Map<String, List<Transaction>> transactions = new HashMap<>();
+
+    public static void main(String[] args) {
+        SpringApplication.run(RewardPointsCalc.class, args);
+    }
+
+    @PostMapping("/calculations/{customerId}")
+    public void addTransaction(@PathVariable String customerId, @RequestBody Transaction transaction) {
+        if (!transactions.containsKey(customerId)) {
+            transactions.put(customerId, new ArrayList<>());
+        }
+        transactions.get(customerId).add(transaction);
+    }
+
+    @GetMapping("/rewardpoints/{customerId}")
+    public RewardPoints calculateRewardPoints(@PathVariable String customerId) {
+        if (!transactions.containsKey(customerId)) {
+            throw new IllegalArgumentException("No transactions found for customer: " + customerId);
+        }
+
+        List<Transaction> customerTransactions = transactions.get(customerId);
+        int totalPoints = 0;
+        int[] monthlyPoints = new int[3]; 
+
+        for (Transaction transaction : customerTransactions) {
+            int points = calculatePoints(transaction.getAmount());
+            totalPoints += points;
+            monthlyPoints[transaction.getMonth() - 1] += points;
+        }
+
+        return new RewardPoints(totalPoints, monthlyPoints);
+    }
+
+    private int calculatePoints(double amount) {
+        int points = 0;
+        if (amount > 100) {
+            points += (int) (2 * (amount - 100));
+            amount = 100;
+        }
+        if (amount > 50) {
+            points += (int) (1 * (amount - 50));
+        }
+        return points;
+    }
+
+    static class Transaction {
+        private int month;
+        private double amount;
+        
+
+        public int getMonth() {
+            return month;
+        }
+
+        public void setMonth(int month) {
+            this.month = month;
+        }
+
+        public double getAmount() {
+            return amount;
+        }
+
+        public void setAmount(double amount) {
+            this.amount = amount;
+        }
+    }
+
+    static class RewardPoints {
+        private int totalPoints;
+        private int[] monthlyPoints;
+        
+        public RewardPoints(int totalPoints, int[] monthlyPoints) {
+            this.totalPoints = totalPoints;
+            this.monthlyPoints = monthlyPoints;
+        }
+
+        public int getTotalPoints() {
+            return totalPoints;
+        }
+
+        public void setTotalPoints(int totalPoints) {
+            this.totalPoints = totalPoints;
+        }
+
+        public int[] getMonthlyPoints() {
+            return monthlyPoints;
+        }
+
+        public void setMonthlyPoints(int[] monthlyPoints) {
+            this.monthlyPoints = monthlyPoints;
+        }
+    }
+}
